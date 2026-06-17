@@ -13,6 +13,10 @@ const Login = () => {
   const location = useLocation(); 
   const { email, password } = formData;
 
+  // 🌐 MENGAMBIL URL BACKEND SECARA DINAMIS (Bawaan Vite)
+  // Jika di Vercel belum diatur, dia akan otomatis kembali ke localhost:5000
+  const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
   // =========================================================================
   // 🌐 LOGIKA MENANGKAP LEMPARAN DATA LOGIN GOOGLE DARI BACKEND
   // =========================================================================
@@ -26,14 +30,12 @@ const Login = () => {
       const roleRaw = params.get('role') || 'kurir';
       const roleValid = roleRaw.toLowerCase().trim();
 
-      // ⭐ DI-UPDATE: Rekam waktu tepat saat login berhasil (Waktu Sekarang dalam milidetik)
       const waktuSekarang = new Date().getTime();
 
-      // Amankan kredensial login Google ke localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('role', roleValid);
       localStorage.setItem('nama', namaFinal);
-      localStorage.setItem('loginTime', waktuSekarang.toString()); // 👈 BARU: Mengunci durasi login agar tidak logout sendiri saat refresh
+      localStorage.setItem('loginTime', waktuSekarang.toString());
       
       if (idKurir) {
         localStorage.setItem('kurirId', idKurir);
@@ -50,21 +52,22 @@ const Login = () => {
   }, [location, navigate]);
 
   // =========================================================================
-  // 🌐 AKSI KLIK TOMBOL GOOGLE
+  // 🌐 AKSI KLIK TOMBOL GOOGLE (DIPERBARUI)
   // =========================================================================
   const handleGoogleLogin = () => {
-    window.location.href = 'http://localhost:5000/api/auth/google';
+    window.location.href = `${BASE_URL}/api/auth/google`;
   };
 
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   // =========================================================================
-  // 🔐 LOGIKA LOGIN MANUAL (DIPERBARUI DENGAN TIMESTAMP KEEPALIVE)
+  // 🔐 LOGIKA LOGIN MANUAL (DIPERBARUI DENGAN API CLOUD)
   // =========================================================================
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', formData);
+      // ⭐ DI-UPDATE: Sekarang menembak URL dinamis sesuai lingkungan server
+      const res = await axios.post(`${BASE_URL}/api/auth/login`, formData);
       console.log("Respon Login Backend:", res.data);
 
       const token = res.data.token;
@@ -79,13 +82,12 @@ const Login = () => {
 
       const namaFinal = res.data.user?.namaLengkap || res.data.nama || namaPanggilan;
       
-      // ⭐ DI-UPDATE: Rekam waktu tepat saat login manual berhasil
       const waktuSekarang = new Date().getTime();
 
       if (token) localStorage.setItem('token', token);
       if (roleValid) localStorage.setItem('role', roleValid);
       localStorage.setItem('nama', namaFinal); 
-      localStorage.setItem('loginTime', waktuSekarang.toString()); // 👈 BARU: Menandai awal sesi aktif browser Anda
+      localStorage.setItem('loginTime', waktuSekarang.toString()); 
       if (userEmail) localStorage.setItem('kurirEmail', userEmail);
 
       const idKurir = res.data.user?._id || res.data.user?.id || res.data._id || res.data.id || res.data.userId || '';
@@ -107,7 +109,7 @@ const Login = () => {
       
     } catch (err) {
       console.error("Error login:", err);
-      alert(err.response?.data?.msg || err.response?.data?.message || "Email atau Password Salah.");
+      alert(err.response?.data?.msg || err.response?.data?.message || "Gagal terhubung ke server atau Email/Password salah.");
     }
   };
 
