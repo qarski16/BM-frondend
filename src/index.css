@@ -1,0 +1,15 @@
+/* Menghilangkan margin/padding bawaan browser */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html, #root {
+  width: 100%;
+  /* Ganti height 100% menjadi min-height agar bisa memanjang */
+  min-height: 100%; 
+  /* Ganti hidden menjadi auto agar scroll muncul saat konten panjang */
+  overflow-y: auto; 
+  background-color: #0f172a; /* Warna dasar biar tidak putih saat loading */
+}
