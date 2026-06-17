@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
+import Login from './pages/login';
 // FIX CASE-SENSITIVITY: Mengubah 'Register' menjadi 'register' sesuai nama file asli
 import Register from './pages/register';
 import DashboardAdmin from './pages/DashboardAdmin';
