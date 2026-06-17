@@ -19,14 +19,22 @@ const DashboardAdmin = () => {
   const [recentOrders, setRecentOrders] = useState([]);
   const [namaAdmin, setNamaAdmin] = useState("Admin Utama");
 
+  // 🌐 MENGAMBIL URL BACKEND SECARA DINAMIS (Bawaan Vite)
+  const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
   // Ambil data dari backend API summary & semua pesanan
   const fetchData = async () => {
     try {
-      // 1. Ambil data statistik ringkasan dashboard beserta manifes kurir
-      const resStats = await axios.get('http://localhost:5000/api/pesanan/summary');
+      const token = localStorage.getItem('token');
+      // Konfigurasi header token otentikasi agar aman dari pembajakan data
+      const configHeaders = { headers: { 'Authorization': `Bearer ${token}` } };
+
+      // 1. ⭐ DI-UPDATE: Ambil data statistik ringkasan dashboard beserta manifes kurir dari Cloud
+      const resStats = await axios.get(`${BASE_URL}/api/pesanan/summary`, configHeaders);
       
-      // 2. Ambil data pesanan terbaru untuk melacak alur kurir real-time
-      const resOrders = await axios.get('http://localhost:5000/api/pesanan/semua');
+      // 2. ⭐ DI-UPDATE: Ambil data pesanan terbaru untuk melacak alur kurir secara real-time dari Cloud
+      const resOrders = await axios.get(`${BASE_URL}/api/pesanan/semua`, configHeaders);
+      
       let dataOrders = [];
       if (resOrders.data && Array.isArray(resOrders.data)) {
         dataOrders = resOrders.data;
@@ -35,17 +43,12 @@ const DashboardAdmin = () => {
 
       if (resStats.data) {
         const rawKurirList = resStats.data.listKurir || [];
-        const backendKurirAktifCount = resStats.data.kurirAktif || 0;
 
-        // Pemetaan cerdas baru: Mengikuti perubahan asli dari status per-kurir
+        // Pemetaan status per-kurir
         const normalizedKurirList = rawKurirList.map((kurir) => {
           let statusMentah = kurir.status || 'offline';
           let statusTeks = String(statusMentah).toLowerCase().trim();
 
-          // 🚨 PERBAIKAN SINKRONISASI: Kita tidak lagi memaksa status secara global.
-          // Kita langsung mempercayai string status individual yang dikirim backend.
-          // Jika backend mengirim "offline" (saat kurir klik offline), UI Admin akan ikut OFFLINE.
-          // Jika backend mengirim "online"/"aktif"/"aktif (online)", UI Admin akan ikut ONLINE.
           if (statusTeks === 'aktif' || statusTeks === 'online' || statusTeks.includes('aktif')) {
             statusTeks = 'online';
           } else {
@@ -73,22 +76,19 @@ const DashboardAdmin = () => {
           pesananMasuk: totalMasuk || resStats.data.pesananMasuk || 0,
           dalamProses: totalProses || resStats.data.dalamProses || 0,
           pesananSelesai: totalSelesai || resStats.data.pesananSelesai || 0,
-          kurirAktif: totalKurirAktifRealtime, // Menggunakan kalkulasi realtime agar angka di box atas ikut sinkron (menjadi 0 jika semua offline)
+          kurirAktif: totalKurirAktifRealtime, 
           listKurir: normalizedKurirList, 
           dataGrafik: resStats.data.dataGrafik || [0, 0, 0, 0, 0, 0, 0]
         });
       }
     } catch (err) {
-      console.error("Gagal sinkronisasi dengan database:", err);
+      console.error("Gagal sinkronisasi dengan database cloud:", err);
       
-      // FALLBACK SEBAGAI PENGAMAN MOCKUP VISUAL JIKA BACKEND DOWN
-      setRecentOrders([
-        { _id: "p1", namaLengkap: "jumran", alamat: "jl. bambu runcing...", status: "Selesai" },
-        { _id: "p2", namaLengkap: "jumran", alamat: "jl...", status: "Ditolak" }
-      ]);
+      // Bersihkan data mockup agar tampilan tidak memunculkan data palsu "jumran" saat server offline
+      setRecentOrders([]);
       setStats(prev => ({
         ...prev,
-        listKurir: [{ namaLengkap: "fatwa", statusNormalized: "offline" }]
+        listKurir: []
       }));
     }
   };
@@ -119,14 +119,15 @@ const DashboardAdmin = () => {
     if (window.confirm("Apakah Anda yakin ingin menghapus catatan aktivitas pesanan ini secara permanen?")) {
       try {
         const token = localStorage.getItem('token'); 
+        // ⭐ DI-UPDATE: Mengganti endpoint hapus pesanan ke URL Cloud
         const res = await axios.delete(
-          `http://localhost:5000/api/pesanan/hapus/${id}`,
+          `${BASE_URL}/api/pesanan/hapus/${id}`,
           { headers: { 'Authorization': `Bearer ${token}` } } 
         );
         alert(res.data.message || "Catatan aktivitas berhasil dihapus!");
         fetchData(); 
       } catch (err) {
-        console.error("Gagal menghapus data:", err);
+        console.error("Gagal menghapus data dari cloud:", err);
         setRecentOrders(recentOrders.filter(order => order._id !== id));
       }
     }
@@ -226,7 +227,7 @@ const DashboardAdmin = () => {
                   </div>
                 ))
               ) : (
-                <p style={{ color: '#9ca3af', fontSize: '13px' }}>Belum ada data aktivitas pesanan.</p>
+                <p style={{ color: '#9ca3af', fontSize: '13px', margin: 0 }}>Belum ada data aktivitas pesanan di Cloud.</p>
               )}
             </div>
           </div>
@@ -249,15 +250,13 @@ const DashboardAdmin = () => {
             </div>
           </div>
 
-          {/* Box 4: STATUS KURIR REAL-TIME (SINKRON DUA ARAH) */}
+          {/* Box 4: STATUS KURIR REAL-TIME */}
           <div style={cardLayout}>
             <p style={cardTitle}>Status Kurir Berdasarkan Database</p>
             <div style={{ ...listContainer, maxHeight: '200px', overflowY: 'auto' }}>
               {stats.listKurir && stats.listKurir.length > 0 ? (
                 stats.listKurir.map((kurir, index) => {
-                  
                   const isOnline = kurir.statusNormalized === 'online';
-                  
                   return (
                     <div key={index} style={activityItemStyle}>
                       <span style={{ textTransform: 'capitalize', fontSize: '14px', fontWeight: '500', color: '#cbd5e1' }}>
@@ -274,7 +273,7 @@ const DashboardAdmin = () => {
                   );
                 })
               ) : (
-                <p style={{ color: '#9ca3af', fontSize: '13px', margin: 0 }}>Belum ada akun kurir terdaftar di database.</p>
+                <p style={{ color: '#9ca3af', fontSize: '13px', margin: 0 }}>Belum ada akun kurir terdaftar di database Cloud.</p>
               )}
             </div>
           </div>
