@@ -13,13 +13,19 @@ const Register = () => {
   const navigate = useNavigate();
   const { namaLengkap, email, password } = formData;
 
+  // 🌐 MENGAMBIL URL BACKEND SECARA DINAMIS (Bawaan Vite)
+  const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  // LOGIKA REGISTRASI FORM MANUAL (TETAP AMAN)
+  // =========================================================================
+  // 🔐 LOGIKA REGISTRASI FORM MANUAL (DIPERBARUI DENGAN API CLOUD)
+  // =========================================================================
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/register', formData);
+      // ⭐ DI-UPDATE: Mengganti http://localhost:5000 menjadi ${BASE_URL}
+      const res = await axios.post(`${BASE_URL}/api/auth/register`, formData);
       alert(res.data.msg || "Registrasi Berhasil!");
       navigate('/login'); 
     } catch (err) {
@@ -29,12 +35,11 @@ const Register = () => {
   };
 
   // =========================================================================
-  // 🌐 BARU: FUNGSI MEMICU LOGIN/REGISTRASI GOOGLE OAUTH
+  // 🌐 FUNGSI MEMICU LOGIN/REGISTRASI GOOGLE OAUTH (DIPERBARUI DENGAN API CLOUD)
   // =========================================================================
   const handleGoogleRegister = () => {
-    // Mengarahkan browser ke endpoint Google Auth backend yang sama.
-    // Jika email belum terdaftar, backend otomatis membuatkannya dokumen baru.
-    window.location.href = 'http://localhost:5000/api/auth/google';
+    // ⭐ DI-UPDATE: Mengganti http://localhost:5000 menjadi ${BASE_URL}
+    window.location.href = `${BASE_URL}/api/auth/google`;
   };
 
   return (
@@ -77,7 +82,6 @@ const Register = () => {
 
           <div style={{ margin: '20px 0', textAlign: 'center', color: '#ccc', fontSize: '14px' }}>or</div>
 
-          {/* 👈 DI-UPDATE: Ditambahkan type="button" dan onClick={handleGoogleRegister} */}
           <button type="button" onClick={handleGoogleRegister} style={googleButtonStyle}>
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{ width: '18px', marginRight: '10px' }} />
             Continue with Google
