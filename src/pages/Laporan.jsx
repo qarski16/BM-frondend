@@ -3,6 +3,9 @@ import axios from 'axios';
 import * as XLSX from 'xlsx'; 
 import Sidebar from '../components/Sidebar'; // Memanggil sidebar seragam
 
+// Konfigurasi URL Base API agar aman saat dideploy ke Vercel
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const Laporan = () => {
   const [dataLaporan, setDataLaporan] = useState([]);
   const [stats, setStats] = useState({ total: 0, komisi: 0, kurirAktif: 0 });
@@ -15,9 +18,18 @@ const Laporan = () => {
 
   const fetchData = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/pesanan/laporan-detail');
-      const resSummary = await axios.get('http://localhost:5000/api/pesanan/summary');
-      const resKurir = await axios.get('http://localhost:5000/api/auth/semua-kurir');
+      const token = localStorage.getItem('token');
+      // Menggunakan dual-header auth agar aman di Vercel/Production
+      const config = token ? { 
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'x-auth-token': token
+        } 
+      } : {};
+
+      const res = await axios.get(`${API_BASE_URL}/api/pesanan/laporan-detail`, config);
+      const resSummary = await axios.get(`${API_BASE_URL}/api/pesanan/summary`, config);
+      const resKurir = await axios.get(`${API_BASE_URL}/api/auth/semua-kurir`, config);
       
       const pesananSelesai = res.data || [];
       setDataLaporan(pesananSelesai);
@@ -72,7 +84,7 @@ const Laporan = () => {
     const excelData = dataTerfilter.map(item => ({
       Tanggal: new Date(item.createdAt).toLocaleDateString('id-ID'),
       Kurir: item.kurirId?.namaLengkap || 'Belum Ditentukan',
-      'Order ID': `ORD-${item._id.substring(18).toUpperCase()}`,
+      'Order ID': item._id ? `ORD-${item._id.substring(item._id.length - 6).toUpperCase()}` : '-',
       Status: item.status || 'Selesai',
       'Detail Paket': item.detailPesanan || '-',
       Alamat: item.alamat || '-',
@@ -124,7 +136,7 @@ const Laporan = () => {
         </div>
 
         {/* ==================================================================== */}
-        {/* AREA 3 KOTAK STATISTIK MINIMALIS (Sesuai Gambar Referensi Pilihan Anda) */}
+        {/* AREA 3 KOTAK STATISTIK MINIMALIS */}
         {/* ==================================================================== */}
         <div style={statsRow}>
           <div style={miniCard}>
@@ -158,7 +170,9 @@ const Laporan = () => {
                 <tr key={item._id || index} style={bodyRow}>
                   <td style={tdStyle}>{new Date(item.createdAt).toLocaleDateString('id-ID')}</td>
                   <td style={tdStyle}>{item.kurirId?.namaLengkap || 'Belum Ditentukan'}</td>
-                  <td style={tdStyle}>ORD-{item._id.substring(18).toUpperCase()}</td>
+                  <td style={tdStyle}>
+                    {item._id ? `ORD-${item._id.substring(item._id.length - 6).toUpperCase()}` : `ORD-00${index + 1}`}
+                  </td>
                   <td style={tdStyle}><span style={{color: '#10b981'}}>● {item.status || 'Selesai'}</span></td>
                   <td style={tdStyle}>2%</td>
                 </tr>
@@ -177,7 +191,7 @@ const Laporan = () => {
   );
 };
 
-// --- CSS STYLES (Diperbarui Khusus Area Kotak Statistik) ---
+// --- CSS STYLES ---
 const containerStyle = { display: 'flex', backgroundColor: '#111827', minHeight: '100vh' };
 const mainContentStyle = { flex: 1, padding: '30px', marginLeft: '250px', color: 'white' };
 const filterBar = { display: 'flex', gap: '10px', marginBottom: '25px', alignItems: 'center' };
@@ -185,14 +199,13 @@ const inputFilter = { backgroundColor: '#1f2937', color: 'white', border: '1px s
 const btnTampilkan = { backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '9px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' };
 const btnExport = { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '9px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' };
 
-// Flex layout untuk menyamakan ukuran kotak horizontal
 const statsRow = { display: 'flex', gap: '20px', marginBottom: '30px' };
 const miniCard = { 
   backgroundColor: '#1f2937', 
   padding: '25px 20px', 
   borderRadius: '12px', 
   flex: 1, 
-  border: '1px solid #2d3748', // Garis border tipis khas dark mode
+  border: '1px solid #2d3748', 
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center'
