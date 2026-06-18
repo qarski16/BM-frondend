@@ -11,17 +11,25 @@ const ManajemenKurir = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua Status');
 
+  // 🌐 MENGAMBIL URL BACKEND SECARA DINAMIS (Bawaan Vite untuk Vercel)
+  const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
   // Fungsi ambil data kurir dari backend
   const fetchKurir = async () => {
     try {
-      // Menembak ke endpoint yang sudah kita lengkapi dengan kalkulasi komisi 2% per pengantaran selesai
-      const res = await axios.get('http://localhost:5000/api/auth/semua-kurir');
+      const token = localStorage.getItem('token');
+      
+      // ⭐ DI-UPDATE: Menggunakan BASE_URL dinamis dan menambahkan Token Header agar aman di Cloud
+      const res = await axios.get(`${BASE_URL}/api/auth/semua-kurir`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
       if (res.data && Array.isArray(res.data)) {
         setKurirs(res.data);
-        console.log("Frontend berhasil memuat daftar kurir + data komisi:", res.data);
+        console.log("Frontend berhasil memuat daftar kurir + data komisi dari Cloud:", res.data);
       }
     } catch (err) {
-      console.error("Gagal mengambil data kurir dari backend:", err.message);
+      console.error("Gagal mengambil data kurir dari backend cloud:", err.message);
     }
   };
 
@@ -145,7 +153,7 @@ const ManajemenKurir = () => {
             })
           ) : (
             <p style={{ color: '#9ca3af', fontSize: '14px', gridColumn: '1 / -1' }}>
-              Tidak ada data kurir terdaftar yang cocok dengan kriteria pencarian Anda.
+              Tidak ada data kurir terdaftar yang cocok dengan kriteria pencarian Anda di Cloud.
             </p>
           )}
         </div>
