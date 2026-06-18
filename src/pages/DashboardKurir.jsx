@@ -6,6 +6,9 @@ import logoBm from '../assets/hero-logo.png';
 import RiwayatKurir from './RiwayatKurir'; 
 import ProfilKurir from './ProfilKurir'; 
 
+// Konfigurasi URL Base API agar aman saat dideploy ke Vercel
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const DashboardKurir = () => {
   const [pesanans, setPesanans] = useState([]); 
   const [loading, setLoading] = useState(true);
@@ -27,7 +30,7 @@ const DashboardKurir = () => {
     try {
       const token = localStorage.getItem('token');
       const config = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
-      await axios.put(`http://localhost:5000/api/auth/kurir/update-status/${currentId}`, 
+      await axios.put(`${API_BASE_URL}/api/auth/kurir/update-status/${currentId}`, 
         { status: statusBaru }, 
         config
       );
@@ -49,7 +52,7 @@ const DashboardKurir = () => {
       const token = localStorage.getItem('token');
       const config = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
       
-      const response = await axios.get(`http://localhost:5000/api/pesanan/kurir/aktif/${currentId}`, config);
+      const response = await axios.get(`${API_BASE_URL}/api/pesanan/kurir/aktif/${currentId}`, config);
       
       if (response.data && Array.isArray(response.data) && response.data.length > 0) {
         setPesanans(response.data);
@@ -65,7 +68,7 @@ const DashboardKurir = () => {
   };
 
   // =========================================================================
-  // ⭐ PERBAIKAN UTAMA: FUNGSI UPDATE STATUS DENGAN DUAL-HEADER AUTH & REFRESH
+  // ⭐ FUNGSI UPDATE STATUS DENGAN DUAL-HEADER AUTH & REFRESH
   // =========================================================================
   const handleUpdateStatusPesanan = async (pesananId, statusBaru) => {
     try {
@@ -84,7 +87,7 @@ const DashboardKurir = () => {
       };
 
       const response = await axios.put(
-        `http://localhost:5000/api/pesanan/update-status/${pesananId}`,
+        `${API_BASE_URL}/api/pesanan/update-status/${pesananId}`,
         { status: statusBaru },
         config
       );
@@ -97,7 +100,6 @@ const DashboardKurir = () => {
       console.error("Detail Error update-status:", err.response?.data || err.message);
       const pesanErrorServer = err.response?.data?.message || err.response?.data?.msg;
       
-      // Memberikan instruksi debugging jika string masih belum cocok dengan enum backend
       if (pesanErrorServer === "Status tidak valid") {
         alert(`Error Backend: Teks "${statusBaru}" ditolak karena tidak sesuai enum schema backend. Silakan periksa file backend/models/Pesanan.js Anda.`);
       } else {
@@ -194,7 +196,6 @@ const DashboardKurir = () => {
                 {pesanans && pesanans.length > 0 ? (
                   <div style={{ marginTop: '30px' }}>
                     {pesanans.map((pesananAktif, index) => {
-                      // Normalisasi string status untuk mencocokkan logika tombol
                       const currentStatus = pesananAktif.status ? pesananAktif.status.toLowerCase() : '';
 
                       return (
@@ -209,22 +210,18 @@ const DashboardKurir = () => {
                             <span style={badgeStatusProses}>{pesananAktif.status || 'Menunggu Diproses'}</span>
                           </div>
                           
-                          {/* =========================================================================
-                              ⭐ STEPPER INTERAKTIF (MENDUKUNG FORMAT INDONESIA & INGGRIS)
-                             ========================================================================= */}
+                          {/* --- STEPPER INTERAKTIF --- */}
                           <div style={stepperContainer}>
-                            {/* TOMBOL 1: MULAI TUGAS */}
-                            {/* Jika backend Anda menggunakan bahasa Inggris, ganti 'Ambil Barang' menjadi 'On Progress' atau 'Pick Up' */}
+                            {/* TOMBOL 1: MULAI TUGAS / AMBIL BARANG */}
                             <button 
                               onClick={() => handleUpdateStatusPesanan(pesananAktif._id, 'Ambil Barang')}
-                              disabled={currentStatus !== 'proses' && currentStatus !== 'proses'}
-                              style={(currentStatus === 'proses') ? stepActiveStyle : stepDisabledStyle}
+                              disabled={currentStatus !== 'proses' && currentStatus !== 'pending'}
+                              style={(currentStatus === 'proses' || currentStatus === 'pending') ? stepActiveStyle : stepDisabledStyle}
                             >
                               Mulai Tugas
                             </button>
 
-                            {/* TOMBOL 2: AMBIL BARANG */}
-                            {/* Jika backend Anda menggunakan bahasa Inggris, ganti 'Dalam Perjalanan' menjadi 'Shipping' */}
+                            {/* TOMBOL 2: PROSES PENGIRIMAN */}
                             <button 
                               onClick={() => handleUpdateStatusPesanan(pesananAktif._id, 'Dalam Perjalanan')}
                               disabled={currentStatus !== 'ambil barang' && currentStatus !== 'on progress'}
@@ -233,8 +230,7 @@ const DashboardKurir = () => {
                               Ambil Barang
                             </button>
 
-                            {/* TOMBOL 3: DALAM PERJALANAN */}
-                            {/* Jika backend Anda menggunakan bahasa Inggris, ganti 'Sampai Tujuan' menjadi 'Out for Delivery' */}
+                            {/* TOMBOL 3: SAMPAI LOKASI */}
                             <button 
                               onClick={() => handleUpdateStatusPesanan(pesananAktif._id, 'Sampai Tujuan')}
                               disabled={currentStatus !== 'dalam perjalanan' && currentStatus !== 'shipping'}
@@ -243,8 +239,7 @@ const DashboardKurir = () => {
                               Dalam Perjalanan
                             </button>
 
-                            {/* TOMBOL 4: SAMPAI TUJUAN */}
-                            {/* Jika backend Anda menggunakan bahasa Inggris, ganti 'Selesai' menjadi 'Delivered' */}
+                            {/* TOMBOL 4: SELESAI */}
                             <button 
                               onClick={() => handleUpdateStatusPesanan(pesananAktif._id, 'Selesai')}
                               disabled={currentStatus !== 'sampai tujuan' && currentStatus !== 'out for delivery'}
@@ -348,7 +343,7 @@ const mainContentStyle = { padding: '40px' };
 const headerContent = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #d1d5db', paddingBottom: '15px' };
 const btnStatusStyle = { padding: '6px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', outline: 'none' };
 
-const tableTugasWrapper = { backgroundColor: 'white', status: 'Proses', borderRadius: '8px', border: '1px solid #cbd5e1', maxWidth: '600px', margin: '30px auto 0 auto', overflow: 'hidden' };
+const tableTugasWrapper = { backgroundColor: 'white', borderRadius: '8px', border: '1px solid #cbd5e1', maxWidth: '600px', margin: '30px auto 0 auto', overflow: 'hidden' };
 const tableHeaderTitle = { backgroundColor: '#f8fafc', padding: '12px 20px', fontSize: '16px', fontWeight: 'bold', color: '#334155', borderBottom: '1px solid #e2e8f0' };
 const rowInfo = { display: 'flex', borderBottom: '1px solid #f1f5f9', padding: '12px 20px', alignItems: 'baseline' };
 const labelInfo = { width: '120px', fontSize: '12px', color: '#64748b', fontWeight: '500' };
@@ -359,7 +354,7 @@ const stepperContainer = { display: 'flex', justifyContent: 'center', gap: '10px
 const stepActiveStyle = { backgroundColor: '#15803d', color: 'white', padding: '8px 15px', borderRadius: '4px', fontSize: '12px', fontWeight: '600', border: 'none', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' };
 const stepDisabledStyle = { backgroundColor: '#cbd5e1', color: '#64748b', padding: '8px 15px', borderRadius: '4px', fontSize: '12px', border: 'none', cursor: 'not-allowed', opacity: 0.7 };
 
-const emptyStateBox = { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '50px 20px', marginTop: '40px' };
+const emptyStateBox = { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '50px 20px', marginTop: '40px', border: '1px solid #cbd5e1', borderRadius: '8px', backgroundColor: 'white' };
 const iconContainer = { width: '80px', height: '80px', backgroundColor: '#f3f4f6', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '15px' };
 const btnCekUlang = { marginTop: '20px', backgroundColor: '#ffffff', color: '#374151', border: '1px solid #d1d5db', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' };
 
