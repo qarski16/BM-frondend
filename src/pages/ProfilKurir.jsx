@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+// Konfigurasi URL Base API agar aman saat dideploy ke Vercel
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const ProfilKurir = ({ kurirId, namaKurir, setNamaKurir }) => {
   const [emailKurir, setEmailKurir] = useState('Kurir001@example.com');
   const [nomorHp, setNomorHp] = useState('0812-3456-7890');
@@ -12,8 +15,6 @@ const ProfilKurir = ({ kurirId, namaKurir, setNamaKurir }) => {
   const [previewSim, setPreviewSim] = useState('');
 
   // 🛠️ VALIDASI ID JANGKAUAN GANDA
-  // Jika kurirId dari props bermasalah atau masih membawa ID MongoDB lama, 
-  // ambil cadangan langsung dari localStorage yang sudah bersih setelah login ulang.
   const activeKurirId = kurirId && !kurirId.startsWith('6a11') ? kurirId : (localStorage.getItem('kurirId') || 'BM001');
 
   // --- 🔄 FETCH: AMBIL DATA PROFIL DARI BACKEND SAAT HALAMAN DIBUKA ---
@@ -21,19 +22,22 @@ const ProfilKurir = ({ kurirId, namaKurir, setNamaKurir }) => {
     const fetchProfilData = async () => {
       try {
         const token = localStorage.getItem('token');
-        const config = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
+        const config = token ? { 
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'x-auth-token': token
+          } 
+        } : {};
         
-        // Memanggil endpoint backend menggunakan ID yang sudah tervalidasi string murni
-        const response = await axios.get(`http://localhost:5000/api/auth/kurir/${activeKurirId}`, config);
+        const response = await axios.get(`${API_BASE_URL}/api/auth/kurir/${activeKurirId}`, config);
         if (response.data) {
-          // Menyinkronkan properti response database (namaLengkap dan telepon)
           setNamaKurir(response.data.namaLengkap || response.data.nama || '');
           setEmailKurir(response.data.email || '');
           setNomorHp(response.data.telepon || response.data.noHp || '');
           
-          // Jika di database sudah ada foto SIM sebelumnya, set sebagai preview
+          // Sinkronisasi jalur gambar statis dengan domain server produksi secara dinamis
           if (response.data.fotoSim) {
-            setPreviewSim(`http://localhost:5000/${response.data.fotoSim}`);
+            setPreviewSim(`${API_BASE_URL}/${response.data.fotoSim}`);
           }
         }
       } catch (err) {
@@ -49,15 +53,20 @@ const ProfilKurir = ({ kurirId, namaKurir, setNamaKurir }) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const config = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
+      const config = token ? { 
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'x-auth-token': token
+        } 
+      } : {};
       
-      await axios.put(`http://localhost:5000/api/auth/kurir/update-profil/${activeKurirId}`, {
+      await axios.put(`${API_BASE_URL}/api/auth/kurir/update-profil/${activeKurirId}`, {
         namaLengkap: namaKurir, 
         email: emailKurir,
         telepon: nomorHp
       }, config);
 
-      localStorage.setItem('nama', namaKurir); // Update nama di storage lokal sidebar
+      localStorage.setItem('nama', namaKurir); 
       alert("Profil Anda berhasil diperbarui!");
     } catch (err) {
       alert("Gagal memperbarui profil: " + (err.response?.data?.message || err.message));
@@ -72,9 +81,14 @@ const ProfilKurir = ({ kurirId, namaKurir, setNamaKurir }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const config = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
+      const config = token ? { 
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'x-auth-token': token
+        } 
+      } : {};
       
-      await axios.put(`http://localhost:5000/api/auth/kurir/ubah-password/${activeKurirId}`, {
+      await axios.put(`${API_BASE_URL}/api/auth/kurir/ubah-password/${activeKurirId}`, {
         password: passwordBaru
       }, config);
 
@@ -91,7 +105,7 @@ const ProfilKurir = ({ kurirId, namaKurir, setNamaKurir }) => {
     const file = e.target.files[0];
     if (file) {
       setFileSim(file);
-      setPreviewSim(URL.createObjectURL(file)); // Membuat preview lokal instan sebelum di-upload
+      setPreviewSim(URL.createObjectURL(file)); 
     }
   };
 
@@ -107,11 +121,14 @@ const ProfilKurir = ({ kurirId, namaKurir, setNamaKurir }) => {
       const config = {
         headers: {
           'Content-Type': 'multipart/form-data',
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          ...(token && { 
+            'Authorization': `Bearer ${token}`,
+            'x-auth-token': token
+          })
         }
       };
 
-      await axios.put(`http://localhost:5000/api/auth/kurir/upload-sim/${activeKurirId}`, formData, config);
+      await axios.put(`${API_BASE_URL}/api/auth/kurir/upload-sim/${activeKurirId}`, formData, config);
       alert("Foto SIM Anda berhasil diunggah dan disimpan ke sistem!");
     } catch (err) {
       alert("Gagal mengunggah foto SIM: " + (err.response?.data?.message || err.message));
@@ -146,7 +163,6 @@ const ProfilKurir = ({ kurirId, namaKurir, setNamaKurir }) => {
               </div>
               <div>
                 <label style={labelFormStyle}>ID Kurir</label>
-                {/* Menampilkan ID String murni yang aman */}
                 <input type="text" value={activeKurirId} disabled style={{ ...inputFormStyle, backgroundColor: '#f1f5f9', cursor: 'not-allowed', fontWeight: 'bold' }} />
               </div>
               <div>
