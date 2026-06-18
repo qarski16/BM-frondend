@@ -15,16 +15,24 @@ const PesananMasuk = () => {
     ditolak: 0 
   });
 
+  // 🌐 MENGAMBIL URL BACKEND SECARA DINAMIS (Bawaan Vite untuk Vercel)
+  const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
   // 1. Ambil data pesanan dan hitung statistik secara aman (Isolated Try-Catch)
   const fetchData = async () => {
+    const token = localStorage.getItem('token');
+    // Siapkan konfigurasi header otentikasi JWT token agar aman saat cloud-to-cloud request
+    const configHeaders = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
+
     // ====================================================================
     // JALUR A: Ambil Data Pesanan Utama (Wajib Berhasil)
     // ====================================================================
     try {
-      const resOrders = await axios.get('http://localhost:5000/api/pesanan/semua');
+      // ⭐ DI-UPDATE: Menggunakan BASE_URL cloud dinamis
+      const resOrders = await axios.get(`${BASE_URL}/api/pesanan/semua`, configHeaders);
       const semuaPesanan = resOrders.data || [];
       
-      console.log("Data pesanan berhasil diterima frontend:", semuaPesanan);
+      console.log("Data pesanan cloud berhasil diterima frontend:", semuaPesanan);
 
       // Memastikan status 'pending' dan 'proses' masuk ke dalam tabel antrean admin
       const pesananDitampilkan = semuaPesanan.filter(order => {
@@ -44,14 +52,15 @@ const PesananMasuk = () => {
       }));
 
     } catch (err) {
-      console.error("Gagal mengambil data pesanan utama:", err.message);
+      console.error("Gagal mengambil data pesanan utama dari cloud:", err.message);
     }
 
     // ====================================================================
-    // JALUR B: Ambil Data Statistik Widget Atas (Gagal di sini tidak merusak tabel)
+    // JALUR B: Ambil Data Statistik Widget Atas
     // ====================================================================
     try {
-      const resStats = await axios.get('http://localhost:5000/api/pesanan/summary');
+      // ⭐ DI-UPDATE: Menggunakan BASE_URL cloud dinamis
+      const resStats = await axios.get(`${BASE_URL}/api/pesanan/summary`, configHeaders);
       if (resStats.data) {
         const pendingCount = resStats.data.pesananMasuk || 0;
         const prosesCount = resStats.data.dalamProses || 0;
@@ -65,17 +74,18 @@ const PesananMasuk = () => {
         }));
       }
     } catch (err) {
-      console.warn("Endpoint /summary backend belum siap atau error. Menggunakan kalkulasi lokal frontend.", err.message);
+      console.warn("Endpoint /summary cloud belum siap atau error. Menggunakan kalkulasi lokal frontend.", err.message);
     }
 
     // ====================================================================
-    // JALUR C: Ambil Data Kurir untuk Modal (Gagal di sini tidak merusak tabel)
+    // JALUR C: Ambil Data Kurir untuk Modal
     // ====================================================================
     try {
-      const resKurir = await axios.get('http://localhost:5000/api/auth/semua-kurir');
+      // ⭐ DI-UPDATE: Menggunakan BASE_URL cloud dinamis
+      const resKurir = await axios.get(`${BASE_URL}/api/auth/semua-kurir`, configHeaders);
       setDaftarKurir(resKurir.data || []);
     } catch (err) {
-      console.error("Gagal mengambil daftar kurir:", err.message);
+      console.error("Gagal mengambil daftar kurir dari cloud:", err.message);
     }
   };
 
@@ -88,53 +98,54 @@ const PesananMasuk = () => {
   // 2. Buka Modal Detail
   const handleOpenDetail = (order) => {
     setSelectedOrder(order);
-    // Jika kurirId tersimpan sebagai string kustom, langsung pasang ke state pembantu
     setSelectedKurirId(order.kurirId || ''); 
     setShowModal(true);
   };
 
-  // 3. Aksi UPDATE: Menugaskan Kurir (Disinkronkan ke rute baru PUT /api/pesanan/assign/:id)
+  // 3. Aksi UPDATE: Menugaskan Kurir
   const handleAssignKurir = async () => {
     if (!selectedOrder || !selectedOrder._id) return alert("Data pesanan tidak valid.");
     if (!selectedKurirId) return alert("Silahkan pilih kurir terlebih dahulu!");
     
     try {
-      // Mengarahkan tembakan ke rute /api/pesanan/assign/:id
-      const respon = await axios.put(`http://localhost:5000/api/pesanan/assign/${selectedOrder._id}`, {
-        kurirId: selectedKurirId // Mengirimkan nilai string kustom, contoh: "BM001"
-      });
+      const token = localStorage.getItem('token');
+      const configHeaders = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
+
+      // ⭐ DI-UPDATE: Mengarahkan endpoint PUT assign kurir ke URL Cloud dinamis
+      const respon = await axios.put(`${BASE_URL}/api/pesanan/assign/${selectedOrder._id}`, {
+        kurirId: selectedKurirId 
+      }, configHeaders);
       
-      if (respon.data.success) {
+      if (respon.data.success || respon.data) {
         alert("Kurir berhasil ditugaskan! Tugas langsung dikirim ke dashboard kurir terkait.");
         setShowModal(false);
         fetchData(); // Muat ulang tabel dan widget atas
       }
     } catch (err) {
-      console.error("Gagal menugaskan kurir:", err);
-      alert("Gagal menugaskan kurir. Pastikan endpoint PUT /api/pesanan/assign/:id di backend sudah benar.");
+      console.error("Gagal menugaskan kurir di cloud:", err);
+      alert("Gagal menugaskan kurir. Pastikan rute backend untuk assign pesanan sudah berjalan normal.");
     }
   };
 
-  // 4. Aksi UPDATE: Tolak Pesanan (Disinkronkan ke rute PUT /api/pesanan/update-status/:id dengan proteksi)
+  // 4. Aksi UPDATE: Tolak / Perbarui Status Pesanan
   const handleTolakPesanan = async (orderId) => {
     if (!orderId) return alert("ID Pesanan tidak ditemukan.");
     
     if (window.confirm("Apakah Anda yakin ingin menolak pesanan ini?")) {
       try {
-        // Ambil token JWT dari localStorage jika rute ini membutuhkan auth middleware di backend Anda
         const token = localStorage.getItem('token');
-        const config = token ? { headers: { 'x-auth-token': token } } : {};
+        const configHeaders = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
 
-        // Menembak rute pembaruan status bawaan backend yang valid
-        await axios.put(`http://localhost:5000/api/pesanan/update-status/${orderId}`, {
-          status: 'Selesai' // Atau gunakan status penolakan yang didukung oleh backend Enum Anda
-        }, config);
+        // ⭐ DI-UPDATE: Menembak rute pembaruan status ke server Cloud dinamis
+        await axios.put(`${BASE_URL}/api/pesanan/update-status/${orderId}`, {
+          status: 'Ditolak' // Menggunakan status penolakan yang sesuai enum backend Anda
+        }, configHeaders);
         
-        alert("Status pesanan diperbarui / dialihkan.");
+        alert("Status pesanan berhasil diperbarui menjadi Ditolak.");
         fetchData(); 
       } catch (err) {
-        console.error("Gagal mengubah status pesanan:", err);
-        alert("Gagal memperbarui status pesanan. Cek proteksi token JWT backend.");
+        console.error("Gagal mengubah status pesanan di cloud:", err);
+        alert("Gagal memperbarui status pesanan. Periksa proteksi autentikasi token JWT backend.");
       }
     }
   };
@@ -210,7 +221,7 @@ const PesananMasuk = () => {
                 <tr>
                   <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
                     <i className="fas fa-box-open" style={{fontSize: '24px', display:'block', marginBottom: '10px'}}></i>
-                    Saat ini tidak ada data pesanan antrean atau proses di database.
+                    Saat ini tidak ada data pesanan antrean atau proses di database Cloud.
                   </td>
                 </tr>
               )}
@@ -258,7 +269,6 @@ const PesananMasuk = () => {
                   >
                     <option value="">-- Hubungkan dengan Kurir Aktif --</option>
                     {daftarKurir.map(kurir => (
-                      /* PERBAIKAN: value diisi string kustom kurirId (misal: kurir.kurirId atau namaLengkap jika itu yang menjadi kunci) */
                       <option key={kurir._id} value={kurir.kurirId || kurir.namaLengkap}>
                         {kurir.namaLengkap} ({kurir.statusOnline || 'Aktif'})
                       </option>
