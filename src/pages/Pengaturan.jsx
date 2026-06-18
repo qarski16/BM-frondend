@@ -16,16 +16,23 @@ const Pengaturan = () => {
     waktuBlokir: 10
   });
 
+  // 🌐 MENGAMBIL URL BACKEND SECARA DINAMIS (Bawaan Vite untuk Vercel)
+  const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
   // Ambil data asli dari MongoDB saat halaman dibuka
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/setting');
+        const token = localStorage.getItem('token');
+        const configHeaders = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
+
+        // ⭐ DI-UPDATE: Menggunakan BASE_URL dinamis dan menambahkan Token Header
+        const res = await axios.get(`${BASE_URL}/api/setting`, configHeaders);
         if (res.data) {
           setConfig(res.data);
         }
       } catch (err) {
-        console.error("Gagal memuat pengaturan dari database:", err);
+        console.error("Gagal memuat pengaturan dari database cloud:", err);
       }
     };
     fetchSettings();
@@ -44,11 +51,15 @@ const Pengaturan = () => {
   const handleSaveSettings = async (e) => {
     if (e) e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:5000/api/setting', config);
-      alert(res.data.msg || "Pengaturan berhasil diperbarui!");
+      const token = localStorage.getItem('token');
+      const configHeaders = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
+
+      // ⭐ DI-UPDATE: Mengarahkan endpoint POST update setting ke URL Cloud dinamis + Token Header
+      const res = await axios.post(`${BASE_URL}/api/setting`, config, configHeaders);
+      alert(res.data.msg || "Pengaturan berhasil diperbarui di Cloud!");
     } catch (err) {
       console.error(err);
-      alert("Gagal menyimpan perubahan ke database.");
+      alert("Gagal menyimpan perubahan ke database cloud.");
     }
   };
 
