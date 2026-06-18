@@ -274,7 +274,7 @@ const containerStyle = { display: 'flex', height: '100vh', width: '100vw', overf
 const heroSide = { flex: 1, backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' };
 
 // objectFit: 'cover' memastikan gambar mengisi penuh porsi kiri tanpa border biru sisa
-const imageStyle = { width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' };
+const imageStyle = { width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' };
 
 const formSide = { flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '40px', backgroundColor: '#f8fafc', overflowY: 'auto' };
 const formGrid = { display: 'flex', flexDirection: 'column', gap: '18px' };
