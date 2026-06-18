@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import heroImg from '../assets/hero-kurir.png'; 
 
+// Konfigurasi URL Base API agar aman saat dideploy ke Vercel
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const FormPesanan = () => {
   // State untuk menyimpan data form input
   const [formData, setFormData] = useState({
@@ -31,7 +34,7 @@ const FormPesanan = () => {
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:5000/api/pesanan/tambah', formData);
+      const res = await axios.post(`${API_BASE_URL}/api/pesanan/tambah`, formData);
       
       if (res.status === 200 || res.status === 201) {
         alert('Pesanan Berhasil Dikirim! Layar pelacakan kurir Anda otomatis dibuka.');
@@ -41,7 +44,7 @@ const FormPesanan = () => {
       }
     } catch (err) {
       console.error("Error submit pesanan:", err);
-      alert('Gagal mengirim pesanan. Pastikan server backend Anda sudah berjalan di port 5000.');
+      alert(`Gagal mengirim pesanan. Pastikan server backend Anda sudah berjalan di ${API_BASE_URL}`);
     }
   };
 
@@ -53,7 +56,7 @@ const FormPesanan = () => {
 
     const dapatkanStatusTerbaru = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/pesanan/detail/${idPesananSukses}`);
+        const res = await axios.get(`${API_BASE_URL}/api/pesanan/detail/${idPesananSukses}`);
         setDataPesananTerbaru(res.data);
       } catch (err) {
         console.error("Gagal melakukan polling status:", err.message);
@@ -72,7 +75,7 @@ const FormPesanan = () => {
   const handleRatingSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`http://localhost:5000/api/pesanan/kirim-rating/${idPesananSukses}`, {
+      await axios.put(`${API_BASE_URL}/api/pesanan/kirim-rating/${idPesananSukses}`, {
         rating: bintang,
         catatanRating: ulasan
       });
@@ -89,7 +92,7 @@ const FormPesanan = () => {
 
   return (
     <div style={containerStyle}>
-      {/* SISI KIRI - HERO IMAGE */}
+      {/* SISI KIRI - HERO IMAGE (Dibuat Full Height & Width Proporsional) */}
       <div style={heroSide}>
         <img 
           src={heroImg} 
@@ -144,7 +147,8 @@ const FormPesanan = () => {
                     placeholder="Tuliskan alamat lengkap beserta patokan lokasi..." 
                     value={alamat} 
                     onChange={onChange} 
-                    style={{...inputStyle, height: '90px', resize: 'none'}} 
+                    // Ditambahkan fontFamily: 'inherit' agar sama dengan input lainnya
+                    style={{...inputStyle, height: '90px', resize: 'none', fontFamily: 'inherit'}} 
                     required 
                   />
                 </div>
@@ -197,7 +201,7 @@ const FormPesanan = () => {
                 })}
               </div>
 
-              {/* STATUS KONDISIONAL DINAMIS SESUAI KAMU INGINKAN */}
+              {/* STATUS KONDISIONAL DINAMIS */}
               <div style={statusInfonote}>
                 {dataPesananTerbaru?.status === 'Pending' && "Menunggu admin menunjuk kurir terdekat..."}
                 {dataPesananTerbaru?.status === 'Proses' && "Kurir telah menerima pesanan dan bersiap menuju lokasi."}
@@ -236,7 +240,7 @@ const FormPesanan = () => {
                           placeholder="Contoh: Kurir sangat ramah dan pengiriman cepat sekali..." 
                           value={ulasan} 
                           onChange={(e) => setUlasan(e.target.value)}
-                          style={{ ...inputStyle, height: '60px', resize: 'none', padding: '10px' }}
+                          style={{ ...inputStyle, height: '60px', resize: 'none', padding: '10px', fontFamily: 'inherit' }}
                         />
                       </div>
 
@@ -263,10 +267,15 @@ const FormPesanan = () => {
   );
 };
 
-// --- STYLES (Tambahan Style Objek Baru Tanpa Mengubah Desain Lawas Kamu) ---
+// --- STYLES MODIFIKASI LATEST ---
 const containerStyle = { display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', fontFamily: '"Inter", sans-serif' };
-const heroSide = { flex: 1.2, backgroundColor: '#1e3a8a', display: 'flex', alignItems: 'center', justifyContent: 'center' };
-const imageStyle = { width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center' };
+
+// Mengubah background ke warna dasar agar gambar menyatu mulus ke frame kiri
+const heroSide = { flex: 1, backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' };
+
+// objectFit: 'cover' memastikan gambar mengisi penuh porsi kiri tanpa border biru sisa
+const imageStyle = { width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' };
+
 const formSide = { flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '40px', backgroundColor: '#f8fafc', overflowY: 'auto' };
 const formGrid = { display: 'flex', flexDirection: 'column', gap: '18px' };
 const inputGroup = { display: 'flex', flexDirection: 'column', gap: '6px' };
@@ -274,7 +283,6 @@ const labelStyle = { fontSize: '13px', color: '#475569', fontWeight: '600' };
 const inputStyle = { padding: '12px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', backgroundColor: 'white', color: '#1e293b', outline: 'none', fontSize: '14px', transition: 'all 0.2s ease', boxSizing: 'border-box', width: '100%' };
 const buttonStyle = { padding: '14px', borderRadius: '8px', border: 'none', backgroundColor: '#2563eb', color: 'white', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', marginTop: '10px', boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' };
 
-// Objek Style Baru Khusus Layout Pelacakan Bertahap & Rating Box
 const stepperWrapper = { display: 'flex', flexDirection: 'column', gap: '14px', padding: '16px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' };
 const stepItem = { display: 'flex', alignItems: 'center', gap: '14px', transition: 'all 0.3s ease' };
 const stepCircle = { width: '28px', height: '28px', borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', transition: 'all 0.3s ease' };
