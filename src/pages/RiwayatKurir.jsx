@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios from 'react';
+
+// Konfigurasi URL Base API agar aman saat dideploy ke Vercel
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const RiwayatKurir = () => {
   const [riwayat, setRiwayat] = useState([]);
@@ -18,10 +21,16 @@ const RiwayatKurir = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const config = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
       
-      // Menembak endpoint riwayat yang sudah diperbarui
-      const response = await axios.get(`http://localhost:5000/api/pesanan/kurir/riwayat/${kurirId}`, config);
+      // Menggunakan dual-header auth agar kompatibel dan aman di Vercel
+      const config = token ? { 
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'x-auth-token': token
+        } 
+      } : {};
+      
+      const response = await axios.get(`${API_BASE_URL}/api/pesanan/kurir/riwayat/${kurirId}`, config);
       setRiwayat(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error("Gagal memuat data riwayat database:", err.message);
@@ -43,11 +52,15 @@ const RiwayatKurir = () => {
     item.status?.toLowerCase() === 'proses' || 
     item.status?.toLowerCase() === 'ambil barang' || 
     item.status?.toLowerCase() === 'dalam perjalanan' ||
-    item.status?.toLowerCase() === 'sampai tujuan'
+    item.status?.toLowerCase() === 'sampai tujuan' ||
+    item.status?.toLowerCase() === 'pending'
   ).length;
   
-  // Default "-" karena belum ada fitur ulasan/penilaian di database
-  const ratingKurir = "-"; 
+  // LOGIKA DINAMIS: Menghitung rata-rata rating kurir dari feedback pesanan yang selesai
+  const pesananDenganRating = riwayat.filter(item => item.rating && item.rating > 0);
+  const ratingKurir = pesananDenganRating.length > 0
+    ? (pesananDenganRating.reduce((sum, item) => sum + item.rating, 0) / pesananDenganRating.length).toFixed(1)
+    : "-"; 
 
   // --- LOGIKA FILTER PENCARIAN AMAN ---
   const riwayatFilter = riwayat.filter(item => {
@@ -109,9 +122,9 @@ const RiwayatKurir = () => {
         <div style={cardStyle}>
           <div style={{ ...iconBox, backgroundColor: '#fee2e2' }}><i className="fas fa-star" style={{ color: '#dc2626' }}></i></div>
           <div>
-            <span style={cardLabel}>Rating</span>
-            <h3 style={cardValue}>{ratingKurir}</h3>
-            <span style={cardSub}>{ratingKurir === "-" ? "Belum Ada Penilaian" : "Dari 5.0"}</span>
+            <span style={cardLabel}>Rating Performa</span>
+            <h3 style={cardValue}>{ratingKurir} {ratingKurir !== "-" && "⭐"}</h3>
+            <span style={cardSub}>{ratingKurir === "-" ? "Belum Ada Penilaian" : `Dari ${pesananDenganRating.length} Ulasan`}</span>
           </div>
         </div>
       </div>
@@ -162,6 +175,12 @@ const RiwayatKurir = () => {
                     }}>
                       {item.status || 'Proses'}
                     </span>
+                    {/* Indikator kecil jika pesanan ini mendapatkan rating bintang dari customer */}
+                    {item.rating && (
+                      <div style={{ fontSize: '11px', color: '#eab308', marginTop: '4px', fontWeight: '600' }}>
+                        ★ {item.rating}
+                      </div>
+                    )}
                   </td>
                   <td style={{ ...tdStyle, color: '#64748b', fontSize: '13px' }}>
                     {item.createdAt ? new Date(item.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
@@ -170,7 +189,7 @@ const RiwayatKurir = () => {
               ))
             ) : (
               <tr>
-                <td colSpan="5" style={{ textAlign: 'center', padding: '4px 0', color: '#94a3b8' }}>
+                <td colSpan="5" style={{ textAlign: 'center', padding: '30px 0', color: '#94a3b8' }}>
                   <p>Tidak ada data riwayat pengantaran ditemukan.</p>
                 </td>
               </tr>
