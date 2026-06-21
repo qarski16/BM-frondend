@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import heroImg from '../assets/hero-kurir.png'; 
 
-// Konfigurasi URL Base API agar aman saat dideploy ke Vercel
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
+// Konfigurasi URL Base API agar aman saat dideploy ke Vercel (Mendukung Vite Cloud)
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const FormPesanan = () => {
   // =========================================================================
   // 🌟 DINAMIS JUDUL TAB BROWSER
