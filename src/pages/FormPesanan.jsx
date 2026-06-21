@@ -6,6 +6,13 @@ import heroImg from '../assets/hero-kurir.png';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const FormPesanan = () => {
+  // =========================================================================
+  // 🌟 DINAMIS JUDUL TAB BROWSER
+  // =========================================================================
+  useEffect(() => {
+    document.title = "BM Kurir - Form Pesanan";
+  }, []);
+
   // State untuk menyimpan data form input
   const [formData, setFormData] = useState({
     namaLengkap: '',
@@ -92,7 +99,7 @@ const FormPesanan = () => {
 
   return (
     <div style={containerStyle}>
-      {/* SISI KIRI - HERO IMAGE (Dibuat Full Height & Width Proporsional) */}
+      {/* SISI KIRI - HERO IMAGE */}
       <div style={heroSide}>
         <img 
           src={heroImg} 
@@ -147,7 +154,6 @@ const FormPesanan = () => {
                     placeholder="Tuliskan alamat lengkap beserta patokan lokasi..." 
                     value={alamat} 
                     onChange={onChange} 
-                    // Ditambahkan fontFamily: 'inherit' agar sama dengan input lainnya
                     style={{...inputStyle, height: '90px', resize: 'none', fontFamily: 'inherit'}} 
                     required 
                   />
@@ -204,14 +210,14 @@ const FormPesanan = () => {
               {/* STATUS KONDISIONAL DINAMIS */}
               <div style={statusInfonote}>
                 {dataPesananTerbaru?.status === 'Pending' && "Menunggu admin menunjuk kurir terdekat..."}
-                {dataPesananTerbaru?.status === 'Proses' && "Kurir telah menerima pesanan dan bersiap menuju lokasi."}
+                {dataPesananTerbaru?.status === 'Proses' && "Kurir telah menerima pesanan and bersiap menuju lokasi."}
                 {dataPesananTerbaru?.status === 'Ambil Barang' && "🚚 Kurir sedang mengambil barang di tempat pemesan."}
                 {dataPesananTerbaru?.status === 'Dalam Perjalanan' && "🏍️ Paket aman dalam perjalanan menuju alamat tujuan."}
                 {dataPesananTerbaru?.status === 'Sampai Tujuan' && "Kurir telah sampai di lokasi tujuan pengantaran."}
                 {dataPesananTerbaru?.status === 'Selesai' && "🎉 Pengiriman sukses diselesaikan oleh kurir!"}
               </div>
 
-              {/* BOX FORM INPUT RATING (HANYA MUNCUL JIKA STATUS = SELESAI) */}
+              {/* BOX FORM INPUT RATING */}
               {dataPesananTerbaru?.status === 'Selesai' && (
                 <div style={ratingBoxContainer}>
                   {!sudahKirimRating ? (
@@ -267,22 +273,16 @@ const FormPesanan = () => {
   );
 };
 
-// --- STYLES MODIFIKASI LATEST ---
+// --- STYLES ---
 const containerStyle = { display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', fontFamily: '"Inter", sans-serif' };
-
-// Mengubah background ke warna dasar agar gambar menyatu mulus ke frame kiri
 const heroSide = { flex: 1, backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' };
-
-// objectFit: 'cover' memastikan gambar mengisi penuh porsi kiri tanpa border biru sisa
 const imageStyle = { width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' };
-
 const formSide = { flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '40px', backgroundColor: '#f8fafc', overflowY: 'auto' };
 const formGrid = { display: 'flex', flexDirection: 'column', gap: '18px' };
 const inputGroup = { display: 'flex', flexDirection: 'column', gap: '6px' };
 const labelStyle = { fontSize: '13px', color: '#475569', fontWeight: '600' };
 const inputStyle = { padding: '12px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', backgroundColor: 'white', color: '#1e293b', outline: 'none', fontSize: '14px', transition: 'all 0.2s ease', boxSizing: 'border-box', width: '100%' };
 const buttonStyle = { padding: '14px', borderRadius: '8px', border: 'none', backgroundColor: '#2563eb', color: 'white', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', marginTop: '10px', boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' };
-
 const stepperWrapper = { display: 'flex', flexDirection: 'column', gap: '14px', padding: '16px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' };
 const stepItem = { display: 'flex', alignItems: 'center', gap: '14px', transition: 'all 0.3s ease' };
 const stepCircle = { width: '28px', height: '28px', borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', transition: 'all 0.3s ease' };
