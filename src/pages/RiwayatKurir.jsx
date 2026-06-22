@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'react';
+import axios from 'axios'; // ✅ SEKARANG SUDAH DIPERBAIKI (di-import dari 'axios')
 
-// Konfigurasi URL Base API agar aman saat dideploy ke Vercel
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// Konfigurasi URL Base API yang adaptif untuk Vite maupun Create React App di Vercel
+const API_BASE_URL = 
+  import.meta.env?.VITE_API_URL || 
+  process.env?.REACT_APP_API_URL || 
+  'http://localhost:5000';
 
 const RiwayatKurir = () => {
   const [riwayat, setRiwayat] = useState([]);
@@ -12,7 +15,7 @@ const RiwayatKurir = () => {
   // Ambil ID Kurir dari localStorage
   const [kurirId] = useState(localStorage.getItem('kurirId') || localStorage.getItem('userId') || '');
 
-  // Mengambil data riwayat dari database lokal backend
+  // Mengambil data riwayat dari database backend
   const fetchRiwayat = async () => {
     if (!kurirId) {
       setLoading(false);
@@ -30,10 +33,14 @@ const RiwayatKurir = () => {
         } 
       } : {};
       
+      console.log(`[Riwayat] Mengambil data dari: ${API_BASE_URL}/api/pesanan/kurir/riwayat/${kurirId}`);
+      
       const response = await axios.get(`${API_BASE_URL}/api/pesanan/kurir/riwayat/${kurirId}`, config);
       setRiwayat(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error("Gagal memuat data riwayat database:", err.message);
+      // Memunculkan alert jika ada masalah koneksi rute API riwayat
+      alert(`Gagal memuat riwayat! Periksa koneksi ke backend.\nError: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -93,7 +100,7 @@ const RiwayatKurir = () => {
       {/* 📊 BARIS STATISTIK RINGKASAN */}
       <div style={statsContainer}>
         <div style={cardStyle}>
-          <div style={iconBox}><i className="fas fa-shopping-cart" style={{ color: '#374151' }}></i></div>
+          <div style={iconBox}>🛒</div>
           <div>
             <span style={cardLabel}>Total Pengantaran</span>
             <h3 style={cardValue}>{totalPengantaran}</h3>
@@ -102,7 +109,7 @@ const RiwayatKurir = () => {
         </div>
 
         <div style={cardStyle}>
-          <div style={{ ...iconBox, backgroundColor: '#dcfce7' }}><i className="fas fa-check" style={{ color: '#16a34a' }}></i></div>
+          <div style={{ ...iconBox, backgroundColor: '#dcfce7' }}>✅</div>
           <div>
             <span style={cardLabel}>Selesai</span>
             <h3 style={cardValue}>{selesaiCount}</h3>
@@ -111,7 +118,7 @@ const RiwayatKurir = () => {
         </div>
 
         <div style={cardStyle}>
-          <div style={{ ...iconBox, backgroundColor: '#fef3c7' }}><i className="fas fa-hourglass-half" style={{ color: '#d97706' }}></i></div>
+          <div style={{ ...iconBox, backgroundColor: '#fef3c7' }}>⏳</div>
           <div>
             <span style={cardLabel}>Dalam Proses</span>
             <h3 style={cardValue}>{prosesCount}</h3>
@@ -120,7 +127,7 @@ const RiwayatKurir = () => {
         </div>
 
         <div style={cardStyle}>
-          <div style={{ ...iconBox, backgroundColor: '#fee2e2' }}><i className="fas fa-star" style={{ color: '#dc2626' }}></i></div>
+          <div style={{ ...iconBox, backgroundColor: '#fee2e2' }}>⭐</div>
           <div>
             <span style={cardLabel}>Rating Performa</span>
             <h3 style={cardValue}>{ratingKurir} {ratingKurir !== "-" && "⭐"}</h3>
@@ -131,7 +138,7 @@ const RiwayatKurir = () => {
 
       {/* 🔍 INPUT PENCARIAN */}
       <div style={searchWrapper}>
-        <i className="fas fa-search" style={searchIcon}></i>
+        <span style={searchIcon}>🔍</span>
         <input 
           type="text" 
           placeholder="Cari berdasarkan ID pesanan, Customer, atau alamat..." 
@@ -175,7 +182,6 @@ const RiwayatKurir = () => {
                     }}>
                       {item.status || 'Proses'}
                     </span>
-                    {/* Indikator kecil jika pesanan ini mendapatkan rating bintang dari customer */}
                     {item.rating && (
                       <div style={{ fontSize: '11px', color: '#eab308', marginTop: '4px', fontWeight: '600' }}>
                         ★ {item.rating}
