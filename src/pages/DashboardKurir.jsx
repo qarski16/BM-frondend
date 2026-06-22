@@ -23,11 +23,15 @@ const DashboardKurir = () => {
   const [statusOperasional, setStatusOperasional] = useState('Offline'); 
 
   // =========================================================================
-  // 🔄 FUNGSI UTAMA: UPDATE STATUS KE MONGODB SECARA OTOMATIS
+  // 🔄 FUNGSI UTAMA: UPDATE STATUS KE MONGODB DENGAN DETEKSI ERROR VISUAL
   // =========================================================================
   const updateStatusKeDatabase = async (statusBaru) => {
     const currentId = kurirId || localStorage.getItem('kurirId') || localStorage.getItem('userId') || '';
-    if (!currentId) return;
+    
+    if (!currentId) {
+      alert("⚠️ Gagal Update Status: ID Kurir tidak ditemukan di penyimpanan (localStorage). Silakan Logout dan Login kembali.");
+      return;
+    }
     
     try {
       const token = localStorage.getItem('token');
@@ -43,24 +47,30 @@ const DashboardKurir = () => {
         statusOnline: statusBaru 
       };
 
-      console.log(`[Otomatis] Mengirim ke MongoDB untuk mengubah status menjadi: ${statusBaru}`);
+      console.log(`[Otomatis] Mengirim ke: ${API_BASE_URL}/api/auth/kurir/update-status/${currentId}`);
       
-      await axios.put(
+      const response = await axios.put(
         `${API_BASE_URL}/api/auth/kurir/update-status/${currentId}`, 
         payload, 
         config
       );
 
       // Sinkronkan state lokal setelah database sukses diperbarui
-      setStatusOperasional(statusBaru);
+      if (response.data) {
+        setStatusOperasional(statusBaru);
+      }
     } catch (err) {
-      console.error("Gagal memperbarui status ke database secara otomatis:", err.message);
+      console.error("Gagal memperbarui status ke database:", err);
+      
+      // 🚨 MENAMPILKAN ERROR LANGSUNG KE LAYAR USER
+      const pesanErrorServer = err.response?.data?.msg || err.response?.data?.message || err.message;
+      alert(`❌ Gagal Mengubah Status Menjadi ${statusBaru}!\n\nRespon Server: "${pesanErrorServer}"\n\nTips: Periksa apakah API_BASE_URL (${API_BASE_URL}) sudah aktif dan sesuai.`);
     }
   };
 
   const fetchProfilDanStatusKurir = async () => {
     const currentId = kurirId || localStorage.getItem('kurirId') || localStorage.getItem('userId') || '';
-    if (!currentId) return;
+    if (!currentId) return 'Offline';
     try {
       const token = localStorage.getItem('token');
       const config = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
@@ -123,19 +133,25 @@ const DashboardKurir = () => {
   };
 
   // =========================================================================
-  // ⚡ AUTOMATION TRIGGER (DIURUTKAN AGAR TIDAK BENTROK)
+  // ⚡ AUTOMATION TRIGGER
   // =========================================================================
   useEffect(() => {
     const targetId = kurirId || localStorage.getItem('kurirId') || localStorage.getItem('userId') || '';
     
     const inisialisasiDashboard = async () => {
       if (targetId) {
-        // 1. Ambil profil terlebih dahulu
-        await fetchProfilDanStatusKurir(); 
-        // 2. Set database menjadi Online saat dashboard dibuka
-        await updateStatusKeDatabase('Online');
+        // 1. Ambil profil terlebih dahulu untuk cek status terakhir di DB
+        const statusTerakhir = await fetchProfilDanStatusKurir(); 
+        
+        // 2. Otomatis nyalakan online saat masuk, KECUALI jika memang sengaja diset offline sebelumnya
+        if (statusTerakhir !== 'Offline') {
+          await updateStatusKeDatabase('Online');
+        }
+        
         // 3. Ambil data pesanan aktif
         await fetchDataKurir(true); 
+      } else {
+        alert("⚠️ ID Pengguna tidak ditemukan. Silakan login kembali.");
       }
       setLoading(false);
     };
@@ -158,7 +174,6 @@ const DashboardKurir = () => {
     if (window.confirm(pesanKonfirmasi)) {
       const statusBaru = isOnline ? 'Offline' : 'Online';
       await updateStatusKeDatabase(statusBaru);
-      alert(`Status berhasil diperbarui ke: ${statusBaru === 'Online' ? 'Aktif (Online)' : 'Nonaktif (Offline)'}`);
     }
   };
 
@@ -276,7 +291,7 @@ const DashboardKurir = () => {
   );
 };
 
-// Styles
+// --- 🎨 DEFINISI STYLE (SAMA SEPERTI KODE ASLI ANDA) ---
 const containerStyle = { display: 'flex', backgroundColor: '#e5e7eb', minHeight: '100vh', fontFamily: 'sans-serif' };
 const sidebarStyle = { width: '240px', backgroundColor: '#15803d', color: 'white', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, bottom: 0, left: 0, zIndex: 10 };
 const logoWrapper = { padding: '20px 15px', display: 'flex', justifyContent: 'center', alignItems: 'center', borderBottom: '1px solid #166534' };
