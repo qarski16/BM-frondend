@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import heroImg from '../assets/hero-kurir.png'; 
 
-// Ganti dengan URL Live API Backend Anda yang sebenarnya
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://link-backend-anda-di-render.onrender.com';
+// Mengambil variabel lingkungan dari Vite, atau menggunakan fallback jika tidak terdefinisi
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://bm-umber.vercel.app';
+
 const FormPesanan = () => {
   // =========================================================================
   // 🌟 DINAMIS JUDUL TAB BROWSER
@@ -35,7 +36,7 @@ const FormPesanan = () => {
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   // =========================================================================
-  // 🚀 SUBMIT FORM: Kirim Data ke Backend & Buka Mode Tracking
+  // 🚀 SUBMIT FORM: Kirim Data ke Backend & Buka Mode Tracking (UPDATED ERROR HANDLING)
   // =========================================================================
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -50,7 +51,9 @@ const FormPesanan = () => {
       }
     } catch (err) {
       console.error("Error submit pesanan:", err);
-      alert(`Gagal mengirim pesanan. Pastikan server backend Anda sudah berjalan di ${API_BASE_URL}`);
+      // Mengambil pesan error spesifik dari respon backend jika tersedia
+      const pesanErrorAsli = err.response?.data?.message || err.message;
+      alert(`Gagal mengirim pesanan: ${pesanErrorAsli}. (Target URL: ${API_BASE_URL})`);
     }
   };
 
