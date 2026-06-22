@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios from 'react';
 import logoBm from '../assets/hero-logo.png';
 
 // --- 📥 IMPORT KOMPONEN EKSTERNAL ---
 import RiwayatKurir from './RiwayatKurir'; 
 import ProfilKurir from './ProfilKurir'; 
 
-// Konfigurasi URL Base API agar aman saat dideploy ke Vercel
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// Menggunakan standard import Vite Env agar tidak fallback ke localhost
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const DashboardKurir = () => {
   const [pesanans, setPesanans] = useState([]); 
@@ -21,7 +21,9 @@ const DashboardKurir = () => {
     localStorage.getItem('kurirId') || localStorage.getItem('userId') || ''
   );
   const [namaKurir, setNamaKurir] = useState(localStorage.getItem('nama') || 'Kurir');
-  const [statusOperasional, setStatusOperasional] = useState('Online'); 
+  
+  // Default status awal disesuaikan secara dinamis, bukan hardcoded 'Online'
+  const [statusOperasional, setStatusOperasional] = useState('Offline'); 
 
   // --- 🔄 FUNGSI HUBUNGAN BACKEND (STATUS & TUGAS) ---
   const updateStatusKeDatabase = async (statusBaru) => {
@@ -35,7 +37,25 @@ const DashboardKurir = () => {
         config
       );
     } catch (err) {
-      console.error("Gagal memperbarui status operasional:", err.message);
+      console.error("Gagal memperbarui status operasional ke database:", err.message);
+    }
+  };
+
+  // Ambil status aktual kurir langsung dari database profil saat pertama kali load
+  const fetchProfilDanStatusKurir = async () => {
+    const currentId = kurirId || localStorage.getItem('kurirId') || localStorage.getItem('userId') || '';
+    if (!currentId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
+      
+      // Menembak endpoint profil kurir untuk sinkronisasi status asli di database
+      const response = await axios.get(`${API_BASE_URL}/api/auth/kurir/profile/${currentId}`, config);
+      if (response.data && response.data.statusOnline) {
+        setStatusOperasional(response.data.statusOnline);
+      }
+    } catch (err) {
+      console.error("Gagal sinkronisasi profil status kurir:", err.message);
     }
   };
 
@@ -78,7 +98,6 @@ const DashboardKurir = () => {
         return;
       }
 
-      // Gabungkan kedua jenis header auth agar kompatibel dengan middleware manapun
       const config = {
         headers: {
           'x-auth-token': token,
@@ -101,31 +120,33 @@ const DashboardKurir = () => {
       const pesanErrorServer = err.response?.data?.message || err.response?.data?.msg;
       
       if (pesanErrorServer === "Status tidak valid") {
-        alert(`Error Backend: Teks "${statusBaru}" ditolak karena tidak sesuai enum schema backend. Silakan periksa file backend/models/Pesanan.js Anda.`);
+        alert(`Error Backend: Teks "${statusBaru}" ditolak karena tidak sesuai enum schema backend.`);
       } else {
         alert(pesanErrorServer || "Gagal memperbarui status pesanan.");
       }
     }
   };
 
-  // MANAJEMEN ROUTINE EFFECT (Siklus Hidup Sinkronisasi Data)
+  // Manajemen siklus hidup perbaikan sinkronisasi data yang bersih tanpa auto-offline
   useEffect(() => {
     const targetId = kurirId || localStorage.getItem('kurirId') || localStorage.getItem('userId') || '';
     
-    if (targetId) {
-      setStatusOperasional('Online');
-      updateStatusKeDatabase('Online');
-      fetchDataKurir(true); 
-    } else {
+    const inisialisasiDashboard = async () => {
+      if (targetId) {
+        await fetchProfilDanStatusKurir(); // Cari tahu status asli di DB terlebih dahulu
+        await fetchDataKurir(true); 
+      }
       setLoading(false);
-    }
+    };
+
+    inisialisasiDashboard();
 
     const intervalSinkronisasi = setInterval(() => {
       fetchDataKurir(false); 
     }, 5000);
 
     return () => {
-      if (targetId) updateStatusKeDatabase('Offline');
+      // Menghapus updateStatusKeDatabase('Offline') yang menyebabkan bug reset status otomatis
       clearInterval(intervalSinkronisasi); 
     };
   }, [kurirId]);
@@ -138,8 +159,13 @@ const DashboardKurir = () => {
 
     if (window.confirm(pesanKonfirmasi)) {
       const statusBaru = isOnline ? 'Offline' : 'Online';
+      
+      // Optimistic update di UI dulu agar terasa cepat bagi pengguna
       setStatusOperasional(statusBaru);
+      
+      // Kirim perubahan nyata ke basis data backend & cloud MongoDB
       await updateStatusKeDatabase(statusBaru);
+      
       alert(`Status berhasil diperbarui ke: ${statusBaru === 'Online' ? 'Aktif (Online)' : 'Nonaktif (Offline)'}`);
       
       if (statusBaru === 'Online') {
@@ -149,9 +175,11 @@ const DashboardKurir = () => {
   };
 
   const handleLogout = async () => {
-    await updateStatusKeDatabase('Offline');
-    localStorage.clear();
-    window.location.href = '/login';
+    if (window.confirm("Apakah Anda yakin ingin keluar aplikasi?")) {
+      await updateStatusKeDatabase('Offline');
+      localStorage.clear();
+      window.location.href = '/login';
+    }
   };
 
   if (loading) {
@@ -212,7 +240,6 @@ const DashboardKurir = () => {
                           
                           {/* --- STEPPER INTERAKTIF --- */}
                           <div style={stepperContainer}>
-                            {/* TOMBOL 1: MULAI TUGAS / AMBIL BARANG */}
                             <button 
                               onClick={() => handleUpdateStatusPesanan(pesananAktif._id, 'Ambil Barang')}
                               disabled={currentStatus !== 'proses' && currentStatus !== 'pending'}
@@ -221,7 +248,6 @@ const DashboardKurir = () => {
                               Mulai Tugas
                             </button>
 
-                            {/* TOMBOL 2: PROSES PENGIRIMAN */}
                             <button 
                               onClick={() => handleUpdateStatusPesanan(pesananAktif._id, 'Dalam Perjalanan')}
                               disabled={currentStatus !== 'ambil barang' && currentStatus !== 'on progress'}
@@ -230,7 +256,6 @@ const DashboardKurir = () => {
                               Ambil Barang
                             </button>
 
-                            {/* TOMBOL 3: SAMPAI LOKASI */}
                             <button 
                               onClick={() => handleUpdateStatusPesanan(pesananAktif._id, 'Sampai Tujuan')}
                               disabled={currentStatus !== 'dalam perjalanan' && currentStatus !== 'shipping'}
@@ -239,7 +264,6 @@ const DashboardKurir = () => {
                               Dalam Perjalanan
                             </button>
 
-                            {/* TOMBOL 4: SELESAI */}
                             <button 
                               onClick={() => handleUpdateStatusPesanan(pesananAktif._id, 'Selesai')}
                               disabled={currentStatus !== 'sampai tujuan' && currentStatus !== 'out for delivery'}
