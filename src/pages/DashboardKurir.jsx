@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'react';
+import axios from 'axios';
 import logoBm from '../assets/hero-logo.png';
 
 // --- 📥 IMPORT KOMPONEN EKSTERNAL ---
 import RiwayatKurir from './RiwayatKurir'; 
 import ProfilKurir from './ProfilKurir'; 
 
-// Menggunakan standard import Vite Env agar tidak fallback ke localhost
+// Menggunakan standard import Vite Env agar tidak fallback ke localhost di production
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const DashboardKurir = () => {
@@ -22,22 +22,43 @@ const DashboardKurir = () => {
   );
   const [namaKurir, setNamaKurir] = useState(localStorage.getItem('nama') || 'Kurir');
   
-  // Default status awal disesuaikan secara dinamis, bukan hardcoded 'Online'
+  // State lokal mengikuti data dari database MongoDB
   const [statusOperasional, setStatusOperasional] = useState('Offline'); 
 
-  // --- 🔄 FUNGSI HUBUNGAN BACKEND (STATUS & TUGAS) ---
+  // =========================================================================
+  // 🔄 FUNGSI UTAMA: UPDATE STATUS KE MONGODB SECARA OTOMATIS
+  // =========================================================================
   const updateStatusKeDatabase = async (statusBaru) => {
     const currentId = kurirId || localStorage.getItem('kurirId') || localStorage.getItem('userId') || '';
     if (!currentId) return;
+    
     try {
       const token = localStorage.getItem('token');
-      const config = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
-      await axios.put(`${API_BASE_URL}/api/auth/kurir/update-status/${currentId}`, 
-        { status: statusBaru }, 
+      const config = {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': token || '',
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      };
+
+      // ✨ PERBAIKAN SINKRONISASI: Mengirim 'statusOnline' agar dibaca oleh MongoDB
+      const payload = { 
+        statusOnline: statusBaru 
+      };
+
+      console.log(`[Otomatis] Mengubah status di MongoDB menjadi: ${statusBaru}`);
+      
+      await axios.put(
+        `${API_BASE_URL}/api/auth/kurir/update-status/${currentId}`, 
+        payload, 
         config
       );
+
+      // Sinkronkan state lokal setelah database berhasil diubah
+      setStatusOperasional(statusBaru);
     } catch (err) {
-      console.error("Gagal memperbarui status operasional ke database:", err.message);
+      console.error("Gagal memperbarui status ke database secara otomatis:", err.message);
     }
   };
 
@@ -49,7 +70,6 @@ const DashboardKurir = () => {
       const token = localStorage.getItem('token');
       const config = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
       
-      // Menembak endpoint profil kurir untuk sinkronisasi status asli di database
       const response = await axios.get(`${API_BASE_URL}/api/auth/kurir/profile/${currentId}`, config);
       if (response.data && response.data.statusOnline) {
         setStatusOperasional(response.data.statusOnline);
@@ -87,9 +107,6 @@ const DashboardKurir = () => {
     }
   };
 
-  // =========================================================================
-  // ⭐ FUNGSI UPDATE STATUS DENGAN DUAL-HEADER AUTH & REFRESH
-  // =========================================================================
   const handleUpdateStatusPesanan = async (pesananId, statusBaru) => {
     try {
       const token = localStorage.getItem('token');
@@ -127,13 +144,19 @@ const DashboardKurir = () => {
     }
   };
 
-  // Manajemen siklus hidup perbaikan sinkronisasi data yang bersih tanpa auto-offline
+  // =========================================================================
+  // ⚡ AUTOMATION TRIGGER (Siklus Hidup Sinkronisasi Otomatis)
+  // =========================================================================
   useEffect(() => {
     const targetId = kurirId || localStorage.getItem('kurirId') || localStorage.getItem('userId') || '';
     
     const inisialisasiDashboard = async () => {
       if (targetId) {
-        await fetchProfilDanStatusKurir(); // Cari tahu status asli di DB terlebih dahulu
+        // 1. OTOMATISASI: Set database menjadi Online saat kurir membuka dashboard ini
+        await updateStatusKeDatabase('Online');
+        // 2. Ambil data terbaru dari MongoDB
+        await fetchProfilDanStatusKurir(); 
+        // 3. Ambil data pesanan aktif
         await fetchDataKurir(true); 
       }
       setLoading(false);
@@ -141,16 +164,17 @@ const DashboardKurir = () => {
 
     inisialisasiDashboard();
 
+    // Sinkronisasi data pesanan berkala setiap 5 detik
     const intervalSinkronisasi = setInterval(() => {
       fetchDataKurir(false); 
     }, 5000);
 
     return () => {
-      // Menghapus updateStatusKeDatabase('Offline') yang menyebabkan bug reset status otomatis
       clearInterval(intervalSinkronisasi); 
     };
   }, [kurirId]);
 
+  // Tombol manual jika kurir ingin mengubah statusnya sendiri di pojok kanan atas
   const handleToggleStatus = async () => {
     const isOnline = statusOperasional === 'Online';
     const pesanKonfirmasi = isOnline 
@@ -159,23 +183,17 @@ const DashboardKurir = () => {
 
     if (window.confirm(pesanKonfirmasi)) {
       const statusBaru = isOnline ? 'Offline' : 'Online';
-      
-      // Optimistic update di UI dulu agar terasa cepat bagi pengguna
-      setStatusOperasional(statusBaru);
-      
-      // Kirim perubahan nyata ke basis data backend & cloud MongoDB
       await updateStatusKeDatabase(statusBaru);
-      
       alert(`Status berhasil diperbarui ke: ${statusBaru === 'Online' ? 'Aktif (Online)' : 'Nonaktif (Offline)'}`);
-      
-      if (statusBaru === 'Online') {
-        fetchDataKurir(true);
-      }
     }
   };
 
+  // =========================================================================
+  // 🚪 LOGOUT UTAMAKAN MENGUBAH DATABASE MENJADI OFFLINE
+  // =========================================================================
   const handleLogout = async () => {
     if (window.confirm("Apakah Anda yakin ingin keluar aplikasi?")) {
+      // OTOMATISASI: Kembalikan status di database menjadi Offline sebelum keluar sesi
       await updateStatusKeDatabase('Offline');
       localStorage.clear();
       window.location.href = '/login';
